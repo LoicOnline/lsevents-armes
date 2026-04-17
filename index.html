@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arsenal — Gestion des Armes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0b0d;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2530;
+    --accent: #e8a020;
+    --accent2: #ff4444;
+    --text: #c8d0dc;
+    --text-dim: #5a6478;
+    --text-bright: #eef2f8;
+    --green: #2ecc71;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow Condensed', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+
+  body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px); pointer-events: none; z-index: 9999; }
+
+  /* HEADER */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-icon { width: 36px; height: 36px; fill: var(--accent); }
+  .logo-text { font-family: var(--sans); font-weight: 900; font-size: 22px; letter-spacing: 4px; text-transform: uppercase; color: var(--text-bright); }
+  .logo-sub { font-family: var(--mono); font-size: 10px; color: var(--accent); letter-spacing: 2px; display: block; margin-top: -4px; }
+  .header-right { display: flex; align-items: center; gap: 24px; }
+  .header-stats { display: flex; gap: 24px; }
+  .stat-box { text-align: right; }
+  .stat-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-family: var(--mono); font-size: 20px; color: var(--accent); line-height: 1; }
+
+  /* FIREBASE STATUS */
+  .firebase-status { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--text-dim); cursor: pointer; padding: 6px 10px; border: 1px solid var(--border); transition: border-color .2s; }
+  .firebase-status:hover { border-color: var(--accent); }
+  .fb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; transition: background .3s; }
+  .fb-dot.local { background: var(--accent); }
+  .fb-dot.connected { background: var(--green); }
+  .fb-dot.error { background: var(--accent2); }
+
+  /* TABS */
+  .tabs { display: flex; padding: 0 32px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .tab { padding: 14px 24px; font-family: var(--sans); font-weight: 700; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border: none; background: transparent; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all .2s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* MAIN */
+  main { padding: 28px 32px; max-width: 1600px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* SECTION HEADER */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+  .section-title { font-weight: 900; font-size: 28px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-bright); }
+  .section-title span { color: var(--accent); }
+
+  /* SEARCH */
+  .search-bar { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); padding: 8px 14px; width: 260px; }
+  .search-bar input { background: transparent; border: none; outline: none; color: var(--text); font-family: var(--mono); font-size: 13px; width: 100%; }
+  .search-bar input::placeholder { color: var(--text-dim); }
+  .search-icon { color: var(--text-dim); font-size: 14px; }
+
+  /* BUTTONS */
+  .quick-btn { display: flex; align-items: center; gap: 8px; background: var(--accent); color: #000; border: none; padding: 10px 20px; font-family: var(--sans); font-weight: 900; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: background .2s; white-space: nowrap; }
+  .quick-btn:hover { background: #f0aa30; }
+  .quick-btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .quick-btn.secondary:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
+
+  /* ARSENAL GRID */
+  .weapons-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .weapon-card { background: var(--surface); border: 1px solid var(--border); overflow: hidden; transition: border-color .2s; }
+  .weapon-card:hover { border-color: #2a3040; }
+  .weapon-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface2); gap: 8px; }
+  .weapon-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .weapon-name { font-weight: 700; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .weapon-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .weapon-count { font-family: var(--mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+  .weapon-count strong { color: var(--accent); font-size: 14px; }
+  .icon-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 4px; line-height: 1; transition: color .15s; }
+  .icon-btn:hover { color: var(--accent); }
+  .icon-btn.danger:hover { color: var(--accent2); }
+
+  .serial-list { padding: 10px 0; max-height: 200px; overflow-y: auto; }
+  .serial-list::-webkit-scrollbar { width: 3px; }
+  .serial-list::-webkit-scrollbar-thumb { background: var(--border); }
+  .serial-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 16px; cursor: pointer; transition: background .15s; border-left: 2px solid transparent; gap: 8px; }
+  .serial-item:hover { background: var(--surface2); border-left-color: var(--accent); }
+  .serial-item.lent { border-left-color: var(--accent2); background: rgba(255,68,68,.04); }
+  .serial-item-left { display: flex; align-items: center; gap: 8px; }
+  .serial-code { font-family: var(--mono); font-size: 12px; color: var(--text); letter-spacing: 1px; }
+  .serial-item.lent .serial-code { color: var(--text-dim); text-decoration: line-through; }
+  .serial-item-right { display: flex; align-items: center; gap: 6px; }
+  .serial-status { font-family: var(--mono); font-size: 10px; }
+  .status-available { color: var(--green); }
+  .status-badge-small { font-size: 9px; padding: 2px 6px; letter-spacing: 1px; text-transform: uppercase; }
+  .badge-lent { background: rgba(255,68,68,.15); color: var(--accent2); border: 1px solid rgba(255,68,68,.3); }
+  .sn-edit-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 11px; padding: 1px 3px; opacity: 0; transition: opacity .15s, color .15s; }
+  .serial-item:hover .sn-edit-btn { opacity: 1; }
+  .sn-edit-btn:hover { color: var(--accent); }
+
+  .add-sn-row { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-top: 1px dashed var(--border); }
+  .add-sn-input { flex: 1; background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 4px 0; outline: none; letter-spacing: 1px; }
+  .add-sn-input::placeholder { color: var(--text-dim); }
+  .add-sn-input:focus { border-bottom-color: var(--accent); }
+  .add-sn-btn { background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: 18px; line-height: 1; padding: 0; }
+
+  /* LENT BAR */
+  .lent-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .lent-chip { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid rgba(255,68,68,.25); padding: 6px 12px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); cursor: pointer; transition: border-color .2s; }
+  .lent-chip:hover { border-color: var(--accent2); }
+  .lent-chip .chip-serial { color: var(--accent2); }
+  .lent-chip .chip-name { color: var(--text); }
+
+  /* MODALS BASE */
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); width: 500px; max-width: 95vw; animation: slideUp .2s ease; }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .modal-title { font-weight: 700; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-bright); }
+  .modal-close { background: transparent; border: none; color: var(--text-dim); font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 24px 20px; }
+  .serial-info { background: var(--bg); border: 1px solid var(--border); padding: 12px 16px; margin-bottom: 20px; font-family: var(--mono); }
+  .serial-info .label { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+  .serial-info .value { font-size: 16px; color: var(--accent); margin-top: 2px; }
+  .serial-info .weapon-val { font-size: 13px; color: var(--text); margin-top: 4px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; font-family: var(--mono); }
+  .form-input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 10px 14px; outline: none; transition: border-color .2s; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text-dim); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-footer { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
+  .btn { flex: 1; padding: 11px; font-family: var(--sans); font-weight: 700; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; border: none; cursor: pointer; transition: all .2s; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #f0aa30; }
+  .btn-danger { background: var(--accent2); color: #fff; }
+  .btn-danger:hover { background: #ff2222; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  .btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+
+  /* QUICK ISSUE */
+  .step-section { margin-bottom: 22px; }
+  .step-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: var(--accent); color: #000; font-weight: 700; font-size: 10px; border-radius: 50%; flex-shrink: 0; }
+  .weapon-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .weapon-btn { background: var(--bg); border: 1px solid var(--border); color: var(--text-dim); font-family: var(--sans); font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; padding: 10px 8px; cursor: pointer; text-align: center; transition: all .15s; }
+  .weapon-btn:hover:not(.no-stock) { border-color: var(--accent); color: var(--text); }
+  .weapon-btn.selected { border-color: var(--accent); background: rgba(232,160,32,.1); color: var(--accent); }
+  .weapon-btn.no-stock { opacity: .3; cursor: not-allowed; }
+  .weapon-btn .avail-count { display: block; font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--text-dim); margin-top: 3px; }
+  .weapon-btn.selected .avail-count { color: var(--accent); opacity: .7; }
+  .sn-selector { display: flex; flex-wrap: wrap; gap: 6px; max-height: 130px; overflow-y: auto; padding: 2px; }
+  .sn-btn { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 11px; letter-spacing: 1px; padding: 7px 12px; cursor: pointer; transition: all .15s; }
+  .sn-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sn-btn.selected { border-color: var(--accent); background: rgba(232,160,32,.12); color: var(--accent); }
+  .sn-placeholder { font-family: var(--mono); font-size: 12px; color: var(--text-dim); padding: 16px; width: 100%; text-align: center; border: 1px dashed var(--border); }
+
+  /* FIREBASE CONFIG MODAL */
+  .config-info { background: var(--bg); border: 1px solid var(--border); padding: 14px; margin-bottom: 20px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); line-height: 1.7; }
+  .config-info a { color: var(--accent); }
+
+  /* JOURNAL */
+  .journal-filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 8px 12px; outline: none; min-width: 200px; }
+  .filter-input:focus { border-color: var(--accent); }
+  .filter-input::placeholder { color: var(--text-dim); }
+  .journal-table { width: 100%; border-collapse: collapse; }
+  .journal-table th { text-align: left; padding: 10px 14px; font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); background: var(--surface); }
+  .journal-table td { padding: 12px 14px; font-family: var(--mono); font-size: 12px; border-bottom: 1px solid rgba(30,37,48,.6); color: var(--text); }
+  .journal-table tr:hover td { background: var(--surface2); }
+  .journal-table .empty-row td { text-align: center; color: var(--text-dim); padding: 48px; }
+  .type-badge { padding: 3px 8px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; }
+  .type-pret { background: rgba(255,68,68,.15); color: var(--accent2); border: 1px solid rgba(255,68,68,.3); }
+  .type-retour { background: rgba(46,204,113,.12); color: var(--green); border: 1px solid rgba(46,204,113,.3); }
+  .type-don { background: rgba(232,160,32,.12); color: var(--accent); border: 1px solid rgba(232,160,32,.3); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface); border: 1px solid var(--accent); padding: 14px 20px; font-family: var(--mono); font-size: 12px; color: var(--text-bright); z-index: 500; opacity: 0; transform: translateY(10px); transition: all .3s; max-width: 320px; pointer-events: none; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* CATEGORY MODAL SN LIST */
+  .sn-manage-list { max-height: 200px; overflow-y: auto; margin-bottom: 12px; }
+  .sn-manage-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 12px; }
+  .sn-manage-item:last-child { border-bottom: none; }
+  .sn-manage-input { background: transparent; border: none; border-bottom: 1px solid transparent; color: var(--text); font-family: var(--mono); font-size: 12px; letter-spacing: 1px; outline: none; width: 160px; padding: 2px 0; }
+  .sn-manage-input:focus { border-bottom-color: var(--accent); }
+  .sn-add-row { display: flex; gap: 8px; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+  select.form-input option { background: var(--surface2); }
+
+  @media (max-width: 640px) {
+    header { padding: 14px 16px; flex-wrap: wrap; gap: 10px; }
+    main { padding: 20px 16px; }
+    .tabs { padding: 0 16px; }
+    .header-stats { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg class="logo-icon" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="14" width="24" height="8" rx="1"/>
+      <rect x="26" y="15" width="8" height="2" rx="1"/>
+      <rect x="8" y="22" width="4" height="7" rx="1"/>
+      <rect x="4" y="10" width="6" height="4" rx="1"/>
+    </svg>
+    <div>
+      <div class="logo-text">Arsenal</div>
+      <span class="logo-sub">GTA RP — Gestion des armes</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-stats">
+      <div class="stat-box">
+        <div class="stat-label">Total armes</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Disponibles</div>
+        <div class="stat-value" id="stat-available" style="color:var(--green)">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Prêtées</div>
+        <div class="stat-value" id="stat-lent" style="color:var(--accent2)">—</div>
+      </div>
+    </div>
+    <div class="firebase-status" id="fb-status" onclick="openFirebaseModal()" title="Configurer Firebase">
+      <div class="fb-dot local" id="fb-dot"></div>
+      <span id="fb-label">Local</span>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('arsenal',event)">Arsenal</button>
+  <button class="tab" onclick="switchTab('journal',event)">Journal</button>
+</div>
+
+<main>
+
+  <!-- ARSENAL PANEL -->
+  <div class="panel active" id="panel-arsenal">
+    <div class="section-header">
+      <div class="section-title">Stock d'<span>Armes</span></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Rechercher numéro de série..." oninput="filterArsenal()">
+        </div>
+        <button class="quick-btn secondary" onclick="openCategoryModal()">+ Catégorie</button>
+        <button class="quick-btn" onclick="openQuickModal()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="#000" stroke-width="2.5" stroke-linecap="round"/></svg>
+          Nouvelle sortie
+        </button>
+      </div>
+    </div>
+    <div class="lent-bar" id="lent-bar"></div>
+    <div class="weapons-grid" id="weapons-grid"></div>
+  </div>
+
+  <!-- JOURNAL PANEL -->
+  <div class="panel" id="panel-journal">
+    <div class="section-header">
+      <div class="section-title">Journal des <span>Transactions</span></div>
+      <button class="btn btn-danger" style="flex:none;width:auto;padding:10px 20px" onclick="clearJournal()">Vider journal</button>
+    </div>
+    <div class="journal-filters">
+      <input class="filter-input" type="text" id="filter-person" placeholder="Filtrer par personne / ID..." oninput="renderJournal()">
+      <input class="filter-input" type="text" id="filter-weapon" placeholder="Filtrer par arme / série..." oninput="renderJournal()">
+      <select class="filter-input" id="filter-type" onchange="renderJournal()">
+        <option value="">Tous les types</option>
+        <option value="pret">Prêt</option>
+        <option value="retour">Retour</option>
+        <option value="don">Don (définitif)</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table class="journal-table">
+        <thead>
+          <tr>
+            <th>Date / Heure</th><th>Type</th><th>Arme</th><th>Numéro de série</th><th>Personne</th><th>ID Unique</th><th>Note</th>
+          </tr>
+        </thead>
+        <tbody id="journal-body"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- DETAIL MODAL -->
+<div class="modal-backdrop" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Enregistrer un mouvement</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="serial-info">
+        <div class="label">Numéro de série</div>
+        <div class="value" id="modal-serial">—</div>
+        <div class="weapon-val" id="modal-weapon">—</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type de mouvement</label>
+        <select class="form-input" id="modal-type" onchange="updateModalType()">
+          <option value="pret">Prêt (temporaire)</option>
+          <option value="retour">Retour</option>
+          <option value="don">Don (définitif)</option>
+        </select>
+      </div>
+      <div id="person-fields">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nom de la personne</label>
+            <input class="form-input" type="text" id="modal-name" placeholder="Ex: John Doe">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ID Unique</label>
+            <input class="form-input" type="text" id="modal-uid" placeholder="Ex: 1234">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note (optionnel)</label>
+        <input class="form-input" type="text" id="modal-note" placeholder="Contexte, mission...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveMovement()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK ISSUE MODAL -->
+<div class="modal-backdrop" id="quick-modal" onclick="if(event.target===this)closeQuickModal()">
+  <div class="modal" style="width:600px;max-height:92vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">+ Nouvelle sortie d'arme</div>
+      <button class="modal-close" onclick="closeQuickModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="step-section">
+        <div class="step-label"><span class="step-num">1</span> Choisir le type d'arme</div>
+        <div class="weapon-selector" id="qs-weapon-selector"></div>
+      </div>
+      <div class="step-section">
+        <div class="step-label"><span class="step-num">2</span> Choisir le numéro de série</div>
+        <div id="qs-sn-area"><div class="sn-placeholder">← Sélectionne d'abord une arme</div></div>
+      </div>
+      <div class="step-section">
+        <div class="step-label"><span class="step-num">3</span> Type de mouvement</div>
+        <select class="form-input" id="qs-type" style="max-width:260px">
+          <option value="pret">Prêt (temporaire)</option>
+          <option value="don">Don (définitif)</option>
+        </select>
+      </div>
+      <div class="step-section">
+        <div class="step-label"><span class="step-num">4</span> Personne concernée</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nom</label>
+            <input class="form-input" type="text" id="qs-name" placeholder="Ex: John Doe">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ID Unique</label>
+            <input class="form-input" type="text" id="qs-uid" placeholder="Ex: 1234">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Note (optionnel)</label>
+          <input class="form-input" type="text" id="qs-note" placeholder="Contexte, mission...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeQuickModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveQuickMovement()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal-backdrop" id="cat-modal" onclick="if(event.target===this)closeCategoryModal()">
+  <div class="modal" style="width:520px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title" id="cat-modal-title">Gérer les catégories</div>
+      <button class="modal-close" onclick="closeCategoryModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- New category -->
+      <div class="form-group">
+        <label class="form-label">Nouvelle catégorie d'arme</label>
+        <div class="sn-add-row">
+          <input class="form-input" type="text" id="new-cat-name" placeholder="Ex: Fusil à pompe" style="flex:1">
+          <button class="btn btn-primary" style="flex:none;width:auto;padding:10px 16px" onclick="addCategory()">Ajouter</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <!-- Edit existing -->
+      <div class="form-group">
+        <label class="form-label">Modifier une catégorie existante</label>
+        <select class="form-input" id="cat-select" onchange="loadCategoryEditor()" style="margin-bottom:14px">
+          <option value="">— Choisir une catégorie —</option>
+        </select>
+        <div id="cat-editor" style="display:none">
+          <div class="form-row" style="margin-bottom:12px">
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Renommer</label>
+              <input class="form-input" type="text" id="cat-rename-input" placeholder="Nouveau nom">
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:8px">
+              <button class="btn btn-primary" style="flex:none;padding:10px 14px" onclick="renameCategory()">Renommer</button>
+              <button class="btn btn-danger" style="flex:none;padding:10px 14px" onclick="deleteCategory()">Supprimer</button>
+            </div>
+          </div>
+          <label class="form-label">Numéros de série</label>
+          <div class="sn-manage-list" id="sn-manage-list"></div>
+          <div class="sn-add-row">
+            <input class="form-input" type="text" id="new-sn-input" placeholder="Nouveau numéro de série" style="flex:1;font-family:var(--mono)" onkeydown="if(event.key==='Enter')addSerialToCategory()">
+            <button class="btn btn-primary" style="flex:none;width:auto;padding:10px 16px" onclick="addSerialToCategory()">+ Ajouter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCategoryModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE CONFIG MODAL -->
+<div class="modal-backdrop" id="firebase-modal" onclick="if(event.target===this)closeFirebaseModal()">
+  <div class="modal" style="width:540px">
+    <div class="modal-header">
+      <div class="modal-title">⚙ Configuration Firebase</div>
+      <button class="modal-close" onclick="closeFirebaseModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="config-info">
+        Firebase permet de partager le journal et les prêts entre tous les appareils en temps réel.<br><br>
+        1. Crée un projet sur <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a><br>
+        2. Active <strong>Firestore Database</strong> en mode Test<br>
+        3. Récupère ta config dans Paramètres → Tes applications → Web<br>
+        4. Colle les valeurs ci-dessous
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <input class="form-input" type="text" id="fb-apiKey" placeholder="AIzaSy...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Project ID</label>
+          <input class="form-input" type="text" id="fb-projectId" placeholder="mon-projet-rp">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Auth Domain</label>
+          <input class="form-input" type="text" id="fb-authDomain" placeholder="mon-projet.firebaseapp.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">App ID</label>
+          <input class="form-input" type="text" id="fb-appId" placeholder="1:123456:web:abc...">
+        </div>
+      </div>
+      <div id="fb-status-msg" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="clearFirebaseConfig()">Déconnecter</button>
+      <button class="btn btn-ghost" onclick="closeFirebaseModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveFirebaseConfig()">Connecter</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// DEFAULT WEAPONS DATA
+// ══════════════════════════════════════════════════════════════════════════════
+
+const DEFAULT_WEAPONS = {
+  "Carotte":            ["U5CMYWX7TN","BVBFEQ262D","B4PN3RQ7D4"],
+  "Pistolet detresse":  ["E5YUFH7Y","TDFYG64U","FDCGTN99"],
+  "Revolver":           ["5H8NBJTG2P","EVF6K5NXJZ","C4T8BHQY52","H7FD43M33T"],
+  "Canon scié":         ["9UYUBCQE4X","5RUSCU37P5","DVFY7KF89E","LMKVXNUMYG"],
+  "Pistolet Cayo":      ["JPT8CJHK75","RLLCPQ5Y","Y4MDBFF8NF","YS56M24FFQ"],
+  "Firework":           ["ERF7TNQF","VMZQBBBS","YCG8ND3R","ZBGD4XH7M8","SGJQ5R54"],
+  "Couteau artisanal":  ["R9MVK8DFEM","SM7SEEEVCD","RLWJSQ6UHK","WVVESTRL8U","3KX8V77UGT"],
+  "Clé anglaise":       ["SYHP7C6ZEX","2EXZUVGZUK","MVHSXGXQ58","MJQY5XDGVX","8YT8GPTKY2","MEJ8WJ2R3D"],
+  "Couteau":            ["KFTN956LRL","FPU73DDBF6","QWXZU42QRU","VQ6NXC5GVC","GMTKBXK6XE","TCERXR2TU7","9KEEJPFJD3","5X4RWQ9GYP","3N3Z37UJTL","PSFKB2T4KU"],
+  "Cran d'arret":       ["6EHXRVLE28","F3KL53E4KE","Z689PKFWSU","6T6CN95PHG","3637E42PV6","SCUFFKBDBG","97LRSX36LT","NNXZR9UUTS","459ZJVRBCN","CDMSM3SXWX"],
+  "Machette":           ["SW4H6G874P","RGFJURTPRU","HRQ2CNJQLQ","3TQTX983P8","LE4DR5NCFW","Z3F8FGWKCV","5Z46HQQNJL","E3VFZV5W4Q","PL4BCYSHWF","8VKJZUFP57","3TFZ9NJ4H6","D3HX9MDEM8","DPMHU5SD4W","9WXLS8888G"],
+  "Hache en pierre":    ["CP939SNLC4","LZBSZU8QTJ","4BLDJDNHCB","V7HP6PCYKV","7MT7P46ZNT","YW3PK6GENV","ZRUUVT38TH","C97PZJX5SK","LV43CESR9E","5TVFXZZW55","L8C267JRDN","46995WK7BQ","RYUF8DBS7Q","9NF84GYDQ7"],
+  "Lampe torche":       ["SX9CN8LVTV","P8CB5PQTTW","6T6SCMFKME","TCYK95KMMU","VG45Z66HMC","RCPYKVG44P","3492JCR3CT","W4SYLVDFYX","VVQJHW3QDE","7LUL3LSH25","RJ6R3RMG25","L3SJ2HZF7R","ER9R4GEL8K","QK5KWTEEHS","HK2QVE8BTT","VTZUJLE9FW","GK5XDWSW4X","36EBRWB4TN","Z4C94KYB39","BNNLX67ZFM","PUJ6V5PGLV","GQ3KFWNJL7","7K2X5XPB26","CP4TCHFDE2"]
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STORAGE LAYER  (localStorage fallback + Firebase when configured)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const LS = {
+  LOANS:   'arsenal_loans',
+  JOURNAL: 'arsenal_journal',
+  WEAPONS: 'arsenal_weapons',
+  FB_CFG:  'arsenal_firebase_cfg',
+};
+
+// In-memory state
+let WEAPONS_DATA = {};
+let db = null;           // Firestore instance (null = local mode)
+let fbUnsubscribes = []; // listeners to clean up
+
+function getLoans()   { try { return JSON.parse(localStorage.getItem(LS.LOANS))   || {}; } catch { return {}; } }
+function getJournal() { try { return JSON.parse(localStorage.getItem(LS.JOURNAL)) || []; } catch { return []; } }
+function getWeaponsLocal() {
+  try {
+    const w = JSON.parse(localStorage.getItem(LS.WEAPONS));
+    return (w && Object.keys(w).length > 0) ? w : JSON.parse(JSON.stringify(DEFAULT_WEAPONS));
+  } catch { return JSON.parse(JSON.stringify(DEFAULT_WEAPONS)); }
+}
+function saveLoans(l)   { localStorage.setItem(LS.LOANS,   JSON.stringify(l)); }
+function saveJournal(j) { localStorage.setItem(LS.JOURNAL, JSON.stringify(j)); }
+function saveWeaponsLocal(w) { localStorage.setItem(LS.WEAPONS, JSON.stringify(w)); }
+
+// ── FIREBASE ──────────────────────────────────────────────────────────────────
+
+function getFbConfig() {
+  try { return JSON.parse(localStorage.getItem(LS.FB_CFG)) || null; } catch { return null; }
+}
+
+async function initFirebase(cfg) {
+  // Tear down existing listeners
+  fbUnsubscribes.forEach(u => u());
+  fbUnsubscribes = [];
+  db = null;
+
+  if (!cfg || !cfg.apiKey || !cfg.projectId) {
+    setFbStatus('local');
+    return;
+  }
+
+  setFbStatus('connecting', 'Connexion…');
+  try {
+    const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const { getFirestore, doc, collection, onSnapshot, setDoc, getDoc, addDoc, deleteDoc, getDocs, query, orderBy, writeBatch }
+      = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+
+    const existing = getApps().find(a => a.name === 'arsenal');
+    const app = existing || initializeApp(cfg, 'arsenal');
+    db = getFirestore(app);
+
+    // Expose Firestore helpers to module scope
+    window._fs = { doc, collection, onSnapshot, setDoc, getDoc, addDoc, deleteDoc, getDocs, query, orderBy, writeBatch, db };
+
+    // ── Sync WEAPONS ──
+    const weaponsRef = doc(db, 'arsenal', 'weapons');
+    const wSnap = await getDoc(weaponsRef);
+    if (!wSnap.exists()) {
+      // First time: push local weapons to Firebase
+      await setDoc(weaponsRef, { data: JSON.stringify(WEAPONS_DATA) });
+    } else {
+      WEAPONS_DATA = JSON.parse(wSnap.data().data);
+      saveWeaponsLocal(WEAPONS_DATA);
+    }
+
+    // ── Sync LOANS ──
+    const loansRef = doc(db, 'arsenal', 'loans');
+    const lSnap = await getDoc(loansRef);
+    if (!lSnap.exists()) {
+      await setDoc(loansRef, getLoans());
+    } else {
+      saveLoans(lSnap.data());
+    }
+
+    // ── Live listeners ──
+    fbUnsubscribes.push(onSnapshot(weaponsRef, snap => {
+      if (!snap.exists()) return;
+      WEAPONS_DATA = JSON.parse(snap.data().data);
+      saveWeaponsLocal(WEAPONS_DATA);
+      renderArsenal(); updateStats();
+    }));
+
+    fbUnsubscribes.push(onSnapshot(loansRef, snap => {
+      if (!snap.exists()) return;
+      saveLoans(snap.data());
+      renderArsenal(); updateStats();
+    }));
+
+    fbUnsubscribes.push(onSnapshot(
+      query(collection(db, 'journal'), orderBy('ts', 'desc')),
+      snap => {
+        const entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        saveJournal(entries);
+        renderJournal();
+      }
+    ));
+
+    setFbStatus('connected', 'Firebase');
+  } catch(e) {
+    console.error('Firebase error:', e);
+    setFbStatus('error', 'Erreur — voir console');
+  }
+}
+
+function setFbStatus(state, label) {
+  const dot = document.getElementById('fb-dot');
+  const lbl = document.getElementById('fb-label');
+  dot.className = 'fb-dot ' + state;
+  lbl.textContent = label || { local:'Local', connected:'Firebase', connecting:'…', error:'Erreur' }[state] || state;
+}
+
+// ── WRITE HELPERS (local + firebase) ─────────────────────────────────────────
+
+async function persistLoans(loans) {
+  saveLoans(loans);
+  if (db && window._fs) {
+    const { setDoc, doc, db: fdb } = window._fs;
+    await setDoc(doc(fdb, 'arsenal', 'loans'), loans);
+  }
+}
+
+async function persistWeapons(weapons) {
+  saveWeaponsLocal(weapons);
+  if (db && window._fs) {
+    const { setDoc, doc, db: fdb } = window._fs;
+    await setDoc(doc(fdb, 'arsenal', 'weapons'), { data: JSON.stringify(weapons) });
+  }
+}
+
+async function addJournalEntry(entry) {
+  const journal = getJournal();
+  if (db && window._fs) {
+    const { addDoc, collection, db: fdb } = window._fs;
+    await addDoc(collection(fdb, 'journal'), { ...entry, ts: Date.now() });
+    // listener will update local
+  } else {
+    journal.unshift({ ...entry, id: Date.now() });
+    saveJournal(journal);
+    renderJournal();
+  }
+}
+
+async function clearJournalRemote() {
+  if (db && window._fs) {
+    const { getDocs, collection, deleteDoc, doc, db: fdb } = window._fs;
+    const snap = await getDocs(collection(fdb, 'journal'));
+    for (const d of snap.docs) await deleteDoc(doc(fdb, 'journal', d.id));
+  } else {
+    saveJournal([]);
+    renderJournal();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FIREBASE CONFIG MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.openFirebaseModal = function() {
+  const cfg = getFbConfig() || {};
+  document.getElementById('fb-apiKey').value     = cfg.apiKey     || '';
+  document.getElementById('fb-projectId').value  = cfg.projectId  || '';
+  document.getElementById('fb-authDomain').value = cfg.authDomain || '';
+  document.getElementById('fb-appId').value      = cfg.appId      || '';
+  document.getElementById('fb-status-msg').textContent = '';
+  document.getElementById('firebase-modal').classList.add('open');
+};
+
+window.closeFirebaseModal = function() {
+  document.getElementById('firebase-modal').classList.remove('open');
+};
+
+window.saveFirebaseConfig = async function() {
+  const cfg = {
+    apiKey:     document.getElementById('fb-apiKey').value.trim(),
+    projectId:  document.getElementById('fb-projectId').value.trim(),
+    authDomain: document.getElementById('fb-authDomain').value.trim(),
+    appId:      document.getElementById('fb-appId').value.trim(),
+  };
+  if (!cfg.apiKey || !cfg.projectId) {
+    document.getElementById('fb-status-msg').textContent = '⚠ API Key et Project ID requis.';
+    return;
+  }
+  // auto-fill authDomain if empty
+  if (!cfg.authDomain) cfg.authDomain = cfg.projectId + '.firebaseapp.com';
+  localStorage.setItem(LS.FB_CFG, JSON.stringify(cfg));
+  closeFirebaseModal();
+  await initFirebase(cfg);
+  showToast('✓ Firebase connecté');
+};
+
+window.clearFirebaseConfig = function() {
+  localStorage.removeItem(LS.FB_CFG);
+  fbUnsubscribes.forEach(u => u()); fbUnsubscribes = []; db = null;
+  setFbStatus('local');
+  closeFirebaseModal();
+  showToast('Déconnecté — mode local');
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DETAIL MODAL (click on a SN)
+// ══════════════════════════════════════════════════════════════════════════════
+
+let currentSerial = null;
+let currentWeapon = null;
+
+window.openModal = function(serial, weapon) {
+  currentSerial = serial; currentWeapon = weapon;
+  const loans = getLoans();
+  const isLent = !!loans[serial];
+  document.getElementById('modal-serial').textContent = serial;
+  document.getElementById('modal-weapon').textContent = weapon;
+  document.getElementById('modal-name').value = isLent ? (loans[serial].name || '') : '';
+  document.getElementById('modal-uid').value  = isLent ? (loans[serial].uid  || '') : '';
+  document.getElementById('modal-note').value = '';
+  document.getElementById('modal-type').value = isLent ? 'retour' : 'pret';
+  document.getElementById('modal-title').textContent = isLent ? 'Enregistrer un retour' : 'Enregistrer un mouvement';
+  updateModalType();
+  document.getElementById('modal').classList.add('open');
+};
+
+window.updateModalType = function() {
+  const type = document.getElementById('modal-type').value;
+  document.getElementById('person-fields').style.display = type === 'retour' ? 'none' : 'block';
+};
+
+window.closeModal = function() {
+  document.getElementById('modal').classList.remove('open');
+  currentSerial = null; currentWeapon = null;
+};
+
+window.saveMovement = async function() {
+  const type = document.getElementById('modal-type').value;
+  const name = document.getElementById('modal-name').value.trim();
+  const uid  = document.getElementById('modal-uid').value.trim();
+  const note = document.getElementById('modal-note').value.trim();
+  if (type !== 'retour' && !name && !uid) { showToast('Renseigne au moins le nom ou l\'ID.'); return; }
+
+  const loans = getLoans();
+  const entry = {
+    date: new Date().toLocaleString('fr-FR'), type,
+    weapon: currentWeapon, serial: currentSerial,
+    name: type === 'retour' ? (loans[currentSerial]?.name || '—') : name,
+    uid:  type === 'retour' ? (loans[currentSerial]?.uid  || '—') : uid,
+    note
+  };
+  await addJournalEntry(entry);
+
+  if (type === 'pret')        loans[currentSerial] = { name, uid, since: entry.date };
+  else if (type === 'retour') delete loans[currentSerial];
+  else if (type === 'don')    loans[currentSerial] = { name, uid, since: entry.date, permanent: true };
+
+  await persistLoans(loans);
+  closeModal(); renderArsenal(); updateStats();
+  showToast(type === 'retour' ? '✓ Retour enregistré' : type === 'don' ? '✓ Don enregistré' : '✓ Prêt enregistré');
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// QUICK ISSUE MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+let qsWeapon = null, qsSerial = null;
+
+window.openQuickModal = function() {
+  qsWeapon = null; qsSerial = null;
+  ['qs-name','qs-uid','qs-note'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('qs-type').value = 'pret';
+  renderQsWeapons(); renderQsSerials();
+  document.getElementById('quick-modal').classList.add('open');
+};
+
+window.closeQuickModal = function() {
+  document.getElementById('quick-modal').classList.remove('open');
+};
+
+function renderQsWeapons() {
+  const loans = getLoans();
+  const container = document.getElementById('qs-weapon-selector');
+  container.innerHTML = '';
+  Object.entries(WEAPONS_DATA).forEach(function(entry) {
+    const w = entry[0], serials = entry[1];
+    const avail = serials.filter(function(s){ return !loans[s]; }).length;
+    const noStock = avail === 0;
+    const btn = document.createElement('button');
+    btn.className = 'weapon-btn' + (w === qsWeapon ? ' selected' : '') + (noStock ? ' no-stock' : '');
+    btn.innerHTML = w + '<span class="avail-count">' + avail + ' dispo</span>';
+    if (!noStock) {
+      btn.addEventListener('click', (function(name){ return function() {
+        qsWeapon = name; qsSerial = null; renderQsWeapons(); renderQsSerials();
+      }; })(w));
+    }
+    container.appendChild(btn);
+  });
+}
+
+function renderQsSerials() {
+  const area = document.getElementById('qs-sn-area');
+  if (!qsWeapon) { area.innerHTML = '<div class="sn-placeholder">← Sélectionne d\'abord une arme</div>'; return; }
+  const loans = getLoans();
+  const available = (WEAPONS_DATA[qsWeapon] || []).filter(function(s){ return !loans[s]; });
+  if (!available.length) { area.innerHTML = '<div class="sn-placeholder">Aucun numéro disponible</div>'; return; }
+  const wrap = document.createElement('div');
+  wrap.className = 'sn-selector';
+  available.forEach(function(s) {
+    const btn = document.createElement('button');
+    btn.className = 'sn-btn' + (s === qsSerial ? ' selected' : '');
+    btn.textContent = s;
+    btn.addEventListener('click', (function(sn){ return function() { qsSerial = sn; renderQsSerials(); }; })(s));
+    wrap.appendChild(btn);
+  });
+  area.innerHTML = '';
+  area.appendChild(wrap);
+}
+
+window.selectQsSn = function(s) { qsSerial = s; renderQsSerials(); };
+
+
+window.saveQuickMovement = async function() {
+  if (!qsWeapon) { showToast('Sélectionne une arme.'); return; }
+  if (!qsSerial) { showToast('Sélectionne un numéro de série.'); return; }
+  const type = document.getElementById('qs-type').value;
+  const name = document.getElementById('qs-name').value.trim();
+  const uid  = document.getElementById('qs-uid').value.trim();
+  const note = document.getElementById('qs-note').value.trim();
+  if (!name && !uid) { showToast('Renseigne au moins le nom ou l\'ID.'); return; }
+
+  const loans = getLoans();
+  const entry = { date: new Date().toLocaleString('fr-FR'), type, weapon: qsWeapon, serial: qsSerial, name, uid, note };
+  await addJournalEntry(entry);
+
+  if (type === 'pret')    loans[qsSerial] = { name, uid, since: entry.date };
+  else if (type === 'don') loans[qsSerial] = { name, uid, since: entry.date, permanent: true };
+
+  await persistLoans(loans);
+  closeQuickModal(); renderArsenal(); updateStats();
+  showToast(type === 'don' ? '✓ Don enregistré' : '✓ Prêt enregistré');
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CATEGORY MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+let editingCategory = null;
+
+window.openCategoryModal = function() {
+  document.getElementById('new-cat-name').value = '';
+  document.getElementById('cat-rename-input').value = '';
+  document.getElementById('cat-editor').style.display = 'none';
+  populateCategorySelect();
+  document.getElementById('cat-modal').classList.add('open');
+};
+
+window.closeCategoryModal = function() {
+  document.getElementById('cat-modal').classList.remove('open');
+  editingCategory = null;
+};
+
+function populateCategorySelect() {
+  const sel = document.getElementById('cat-select');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Choisir une catégorie —</option>' +
+    Object.keys(WEAPONS_DATA).map(w => `<option value="${w}" ${w===cur?'selected':''}>${w}</option>`).join('');
+}
+
+window.loadCategoryEditor = function() {
+  const w = document.getElementById('cat-select').value;
+  if (!w) { document.getElementById('cat-editor').style.display = 'none'; editingCategory = null; return; }
+  editingCategory = w;
+  document.getElementById('cat-rename-input').value = w;
+  document.getElementById('cat-editor').style.display = 'block';
+  renderSnManageList();
+};
+
+function renderSnManageList() {
+  const serials = WEAPONS_DATA[editingCategory] || [];
+  const list = document.getElementById('sn-manage-list');
+  if (!serials.length) { list.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);padding:10px">Aucun numéro de série</div>'; return; }
+  list.innerHTML = serials.map((s, i) => `
+    <div class="sn-manage-item">
+      <input class="sn-manage-input" type="text" value="${s}" data-index="${i}"
+        onblur="updateSerial(${i}, this.value)"
+        onkeydown="if(event.key==='Enter')this.blur()">
+      <button class="icon-btn danger" onclick="deleteSerial(${i})" title="Supprimer">✕</button>
+    </div>`).join('');
+}
+
+window.updateSerial = async function(index, newVal) {
+  newVal = newVal.trim().toUpperCase();
+  if (!newVal || !editingCategory) return;
+  const serials = [...WEAPONS_DATA[editingCategory]];
+  serials[index] = newVal;
+  WEAPONS_DATA[editingCategory] = serials;
+  await persistWeapons(WEAPONS_DATA);
+  renderSnManageList(); renderArsenal(); updateStats();
+};
+
+window.deleteSerial = async function(index) {
+  if (!editingCategory) return;
+  const serials = [...WEAPONS_DATA[editingCategory]];
+  serials.splice(index, 1);
+  WEAPONS_DATA[editingCategory] = serials;
+  await persistWeapons(WEAPONS_DATA);
+  renderSnManageList(); renderArsenal(); updateStats();
+  showToast('Numéro supprimé');
+};
+
+window.addSerialToCategory = async function() {
+  const input = document.getElementById('new-sn-input');
+  const val = input.value.trim().toUpperCase();
+  if (!val || !editingCategory) return;
+  if (!WEAPONS_DATA[editingCategory].includes(val)) {
+    WEAPONS_DATA[editingCategory] = [...WEAPONS_DATA[editingCategory], val];
+    await persistWeapons(WEAPONS_DATA);
+    renderSnManageList(); renderArsenal(); updateStats();
+    showToast('✓ Numéro ajouté');
+  } else {
+    showToast('Ce numéro existe déjà.');
+  }
+  input.value = '';
+};
+
+window.addCategory = async function() {
+  const input = document.getElementById('new-cat-name');
+  const name = input.value.trim();
+  if (!name) return;
+  if (WEAPONS_DATA[name]) { showToast('Cette catégorie existe déjà.'); return; }
+  WEAPONS_DATA[name] = [];
+  await persistWeapons(WEAPONS_DATA);
+  input.value = '';
+  populateCategorySelect();
+  renderArsenal(); updateStats();
+  showToast('✓ Catégorie créée : ' + name);
+};
+
+window.renameCategory = async function() {
+  const newName = document.getElementById('cat-rename-input').value.trim();
+  if (!newName || !editingCategory || newName === editingCategory) return;
+  if (WEAPONS_DATA[newName]) { showToast('Ce nom existe déjà.'); return; }
+
+  // Rebuild object preserving order
+  const rebuilt = {};
+  for (const [k, v] of Object.entries(WEAPONS_DATA)) {
+    rebuilt[k === editingCategory ? newName : k] = v;
+  }
+  WEAPONS_DATA = rebuilt;
+  await persistWeapons(WEAPONS_DATA);
+  editingCategory = newName;
+  populateCategorySelect();
+  document.getElementById('cat-select').value = newName;
+  renderArsenal(); updateStats();
+  showToast('✓ Renommé en : ' + newName);
+};
+
+window.deleteCategory = async function() {
+  if (!editingCategory) return;
+  if (!confirm(`Supprimer la catégorie "${editingCategory}" et tous ses numéros de série ?`)) return;
+  delete WEAPONS_DATA[editingCategory];
+  await persistWeapons(WEAPONS_DATA);
+  editingCategory = null;
+  document.getElementById('cat-editor').style.display = 'none';
+  document.getElementById('cat-select').value = '';
+  populateCategorySelect();
+  renderArsenal(); updateStats();
+  showToast('Catégorie supprimée');
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ARSENAL RENDER
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.filterArsenal = function() {
+  const q = document.getElementById('search-input').value.toUpperCase();
+  document.querySelectorAll('.serial-item').forEach(item => {
+    item.style.display = (!q || (item.dataset.serial || '').includes(q)) ? '' : 'none';
+  });
+};
+
+function renderArsenal() {
+  const loans = getLoans();
+  const grid = document.getElementById('weapons-grid');
+  const lentBar = document.getElementById('lent-bar');
+
+  const lentEntries = Object.entries(loans).filter(([,v]) => v && (v.name || v.uid));
+  lentBar.innerHTML = lentEntries.length
+    ? lentEntries.map(([serial, info]) => `
+        <div class="lent-chip" onclick="openModal(${JSON.stringify(serial)}, ${JSON.stringify(findWeapon(serial))})">
+          <span class="chip-serial">${serial}</span>
+          <span class="chip-name">${info.permanent ? '🎁' : '📤'} ${info.name || info.uid}</span>
+        </div>`).join('')
+    : '';
+
+  grid.innerHTML = Object.entries(WEAPONS_DATA).map(([weapon, serials]) => {
+    const lentCount = serials.filter(s => loans[s]).length;
+    const items = serials.map(s => {
+      const loan = loans[s];
+      const isLent = !!loan;
+      return `
+        <div class="serial-item ${isLent ? 'lent' : ''}" data-serial="${s}">
+          <div class="serial-item-left" onclick="openModal(${JSON.stringify(s)}, ${JSON.stringify(weapon)})">
+            <span class="serial-code">${s}</span>
+          </div>
+          <div class="serial-item-right">
+            <span class="serial-status">
+              ${isLent
+                ? `<span class="status-badge-small badge-lent" onclick="openModal(${JSON.stringify(s)}, ${JSON.stringify(weapon)})">${loan.permanent ? 'Donné' : 'Prêté'} · ${loan.name || loan.uid || '?'}</span>`
+                : `<span class="status-available" onclick="openModal(${JSON.stringify(s)}, ${JSON.stringify(weapon)})">● DISPO</span>`}
+            </span>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="weapon-card">
+        <div class="weapon-header">
+          <div class="weapon-header-left">
+            <div class="weapon-name" title="${weapon}">${weapon}</div>
+          </div>
+          <div class="weapon-header-right">
+            <div class="weapon-count"><strong>${serials.length - lentCount}</strong>/${serials.length} dispo</div>
+            <button class="icon-btn" onclick="openEditWeapon(${JSON.stringify(weapon)})" title="Modifier">✎</button>
+          </div>
+        </div>
+        <div class="serial-list">${items}</div>
+        <div class="add-sn-row">
+          <input class="add-sn-input" type="text" placeholder="+ Ajouter un SN rapidement" data-weapon="${weapon}"
+            onkeydown="if(event.key==='Enter')quickAddSn(this)">
+          <button class="add-sn-btn" onclick="quickAddSn(this.previousElementSibling)" title="Ajouter">+</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+window.quickAddSn = async function(input) {
+  const val = input.value.trim().toUpperCase();
+  const weapon = input.dataset.weapon;
+  if (!val || !weapon || !WEAPONS_DATA[weapon]) return;
+  if (WEAPONS_DATA[weapon].includes(val)) { showToast('Ce numéro existe déjà.'); return; }
+  WEAPONS_DATA[weapon] = [...WEAPONS_DATA[weapon], val];
+  await persistWeapons(WEAPONS_DATA);
+  input.value = '';
+  renderArsenal(); updateStats();
+  showToast('✓ ' + val + ' ajouté');
+};
+
+window.openEditWeapon = function(weapon) {
+  openCategoryModal();
+  // Pre-select this weapon after modal opens
+  setTimeout(() => {
+    document.getElementById('cat-select').value = weapon;
+    loadCategoryEditor();
+  }, 50);
+};
+
+function findWeapon(serial) {
+  for (const [w, serials] of Object.entries(WEAPONS_DATA)) {
+    if (serials.includes(serial)) return w;
+  }
+  return '?';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STATS
+// ══════════════════════════════════════════════════════════════════════════════
+
+function updateStats() {
+  const loans = getLoans();
+  let total = 0, lent = 0;
+  for (const serials of Object.values(WEAPONS_DATA)) {
+    total += serials.length;
+    lent  += serials.filter(s => loans[s]).length;
+  }
+  document.getElementById('stat-total').textContent     = total;
+  document.getElementById('stat-available').textContent = total - lent;
+  document.getElementById('stat-lent').textContent      = lent;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// JOURNAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+function renderJournal() {
+  const journal = getJournal();
+  const fp = document.getElementById('filter-person').value.toLowerCase();
+  const fw = document.getElementById('filter-weapon').value.toLowerCase();
+  const ft = document.getElementById('filter-type').value;
+
+  const filtered = journal.filter(e => {
+    if (fp && !(e.name?.toLowerCase().includes(fp) || e.uid?.toLowerCase().includes(fp))) return false;
+    if (fw && !(e.weapon?.toLowerCase().includes(fw) || e.serial?.toLowerCase().includes(fw))) return false;
+    if (ft && e.type !== ft) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('journal-body');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Aucune transaction trouvée</td></tr>`;
+    return;
+  }
+  const typeLabel = { pret:'Prêt', retour:'Retour', don:'Don' };
+  tbody.innerHTML = filtered.map(e => `
+    <tr>
+      <td>${e.date}</td>
+      <td><span class="type-badge type-${e.type}">${typeLabel[e.type] || e.type}</span></td>
+      <td>${e.weapon}</td>
+      <td style="color:var(--accent);font-size:11px">${e.serial}</td>
+      <td>${e.name || '—'}</td>
+      <td>${e.uid  || '—'}</td>
+      <td style="color:var(--text-dim)">${e.note || ''}</td>
+    </tr>`).join('');
+}
+
+window.clearJournal = async function() {
+  if (!confirm('Vider le journal ? Cette action est irréversible.')) return;
+  await clearJournalRemote();
+  showToast('Journal vidé.');
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TABS / TOAST
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.switchTab = function(name, e) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'journal') renderJournal();
+};
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+window.showToast = showToast;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════════════════
+
+WEAPONS_DATA = getWeaponsLocal();
+renderArsenal();
+updateStats();
+
+const fbCfg = getFbConfig();
+if (fbCfg) initFirebase(fbCfg);
+else setFbStatus('local');
+
+</script>
+</body>
+</html>
